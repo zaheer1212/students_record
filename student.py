@@ -1,87 +1,70 @@
+from flask import Flask
+from flask_restful import Resource, Api
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
+from flaskext.mysql import MySQL
+import MySQLdb
 import os
 
+
 app = Flask(__name__)
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'crud.sqlite')
-db = SQLAlchemy(app)
-ma = Marshmallow(app)
+api = Api(app)
+mysql = MySQL()
 
+app.config['MYSQL_DATABASE_USER'] = 'root'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'bugs123'
+app.config['MYSQL_DATABASE_DB'] = 'students'
+app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 
-class Student(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True)
-    roll_no = db.Column(db.String(120), unique=True)
-
-    def __init__(self, name, roll_num):
-        self.name = name
-        self.roll_no = roll_num
-
-
-class StudentSchema(ma.Schema):
-    class Meta:
-        # Fields to expose
-        fields = ('name', 'roll_num')
-
-
-student_schema = StudentSchema()
-students_schema = StudentSchema(many=True)
-
+mysql.init_app(app)
+db = MySQLdb.connect(host="localhost", user="root", passwd="bugs123", db="students")
+cur = db.cursor()
 
 # endpoint to create new user
-@app.route("/student", methods=["POST"])
-def add_user():
-    name = request.json['name']
-    roll_num = request.json['roll_num']
+class StudendtsRecord(Resource):
+    def get(self):
+        print 'IN THIS FUNCTION'
+        cur.execute('''select * from std_record''')
+        r = [dict((cur.description[i][0], value)
+                  for i, value in enumerate(row)) for row in cur.fetchall()]
+        print r
+        return jsonify({'myCollection' : r})
 
-    new_user = Student(name, roll_num)
+    def post(self):
+        print("Create Record")
+        try:
+            name = request.form['name']
+            roll_num = request.form['roll_num']
+            print name, roll_num
+            cur.execute('''INSERT INTO `students`.`std_record`
+            (`name`,
+            `roll_num`)
+            VALUES
+            (%s,%s)''',(name, roll_num))
+            db.autocommit(on=True)
+            return 'Student Added to DATABASE'
+        except Exception as e:
+           return(str(e))
 
-    db.session.add(new_user)
-    db.session.commit()
+    def delete(self):
+        print("Delete Record")
+        try:
+            roll_num = request.form['roll_num']
+            print roll_num
+            try:
+                cur.execute('''DELETE FROM `students`.`std_record`
+                WHERE id > 0 and roll_num=%s;''', (roll_num))
+            except Exception as e:
+                print '============================'
+                print e
+                print '============================'
+            print "DELETED"
+            return 'Record Deleted'
+        except Exception as e:
+            return(str(e))
 
-    return jsonify(new_user)
-
-
-# endpoint to show all students
-@app.route("/student", methods=["GET"])
-def get_user():
-    all_users = Student.query.all()
-    result = student_schema.dump(all_users)
-    return jsonify(result.data)
-
-
-# endpoint to get user detail by id
-@app.route("/student/<id>", methods=["GET"])
-def user_detail(id):
-    student = Student.query.get(id)
-    return student_schema.jsonify(student)
-
-
-# endpoint to update user
-@app.route("/student/<id>", methods=["PUT"])
-def user_update(id):
-    student = Student.query.get(id)
-    name = request.json['name']
-    roll_num = request.json['roll_num']
-
-    student.roll_num = roll_num
-    student.name = name
-
-    db.session.commit()
-    return student_schema.jsonify(student)
-
-
-# endpoint to delete user
-@app.route("/user/<id>", methods=["DELETE"])
-def user_delete(id):
-    student = Student.query.get(id)
-    db.session.delete(student)
-    db.session.commit()
-
-    return student_schema.jsonify(student)
-
+api.add_resource(StudendtsRecord, '/')
 
 if __name__ == '__main__':
     app.run(debug=True)
