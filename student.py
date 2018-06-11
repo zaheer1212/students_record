@@ -1,8 +1,6 @@
 from flask import Flask
 from flask_restful import Resource, Api
 from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow
 from flaskext.mysql import MySQL
 import MySQLdb
 import os
@@ -21,6 +19,7 @@ mysql.init_app(app)
 db = MySQLdb.connect(host="localhost", user="root", passwd="bugs123", db="students")
 cur = db.cursor()
 
+
 # endpoint to create new user
 class StudendtsRecord(Resource):
     def get(self):
@@ -29,7 +28,7 @@ class StudendtsRecord(Resource):
         r = [dict((cur.description[i][0], value)
                   for i, value in enumerate(row)) for row in cur.fetchall()]
         print r
-        return jsonify({'myCollection' : r})
+        return jsonify({'myCollection': r})
 
     def post(self):
         print("Create Record")
@@ -48,13 +47,24 @@ class StudendtsRecord(Resource):
            return(str(e))
 
     def delete(self):
-        print("Delete Record")
+        print("To Delete Record")
+        print(request.form)
+        if 'id' in request.form:
+            student_id = request.form['id']
+        else:
+            student_id = 0
+        if 'name' in request.form:
+            student_name = request.form['name']
+        else:
+            student_name = 'not_given'
+        print '***********************'
+        print student_id
+        print student_name
+        print '***********************'
         try:
-            roll_num = request.form['roll_num']
-            print roll_num
             try:
                 cur.execute('''DELETE FROM `students`.`std_record`
-                WHERE id > 0 and roll_num=%s;''', (roll_num))
+                WHERE `id` = %s OR `name` = %s;''',(student_id, student_name))
             except Exception as e:
                 print '============================'
                 print e
