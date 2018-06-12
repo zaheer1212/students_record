@@ -15,9 +15,9 @@ class StudendtsRecord(Resource):
         data = []
         # Query to Get data of students from database.
         studnet_info = mongo.db.student_record.find({}, {"_id": 0, }).limit(10)
-        for student in studnet_info:                               # Loop to get data of each student and save it in a list.
+        for student in studnet_info:                        # Loop to get data of each student and save it in a list.
             data.append(student)
-        return jsonify({"Studnets_Record": data})                  # Return list of students after converting it in JSON format..
+        return jsonify({"Studnets_Record": data})        # Return list of students after converting it in JSON format.
 
     def post(self):                         # Function to Insert Student data from post.
         try:
@@ -33,6 +33,8 @@ class StudendtsRecord(Resource):
                 student_id = request.form['id']
             else:
                 student_id = ''
+            if len(name) == 0 and len(roll_num) == 0 and len(student_id) == 0:
+                return 'Form is empty at least one column value of name, roll_num or id is Necessary'
             # Query To Insert Record of Student in Database
             mongo.db.student_record.insert({"name": name, "roll_num": roll_num, "student_id": student_id})
             return 'Student Added to DATABASE'
@@ -40,7 +42,10 @@ class StudendtsRecord(Resource):
             return(str(e))
 
     def delete(self):                           # Function to Delete Student Record on base of his name.
-        name = request.form['name']
+        if 'name' in request.form:
+            name = request.form['name']
+        else:
+            return 'Form data is not correct..'
         # Query To Delete Record of Student in Database
         mongo.db.student_record.remove({'name': name})
         return 'Record for This student is Deleted'
