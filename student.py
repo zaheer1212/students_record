@@ -1,78 +1,50 @@
-from flask import Flask
 from flask_restful import Resource, Api
 from flask import Flask, request, jsonify
-from flaskext.mysql import MySQL
-import MySQLdb
+from flask_pymongo import PyMongo
 import os
 
-
 app = Flask(__name__)
+app.config["MONGO_DBNAME"] = "students"                     # Name of your mongodb Database
+mongo = PyMongo(app, config_prefix='MONGO')
 api = Api(app)
-mysql = MySQL()
-
-app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'bugs123'
-app.config['MYSQL_DATABASE_DB'] = 'students'
-app.config['MYSQL_DATABASE_HOST'] = 'localhost'
-
-mysql.init_app(app)
-db = MySQLdb.connect(host="localhost", user="root", passwd="bugs123", db="students")
-cur = db.cursor()
 
 
 # endpoint to create new user
 class StudendtsRecord(Resource):
-    def get(self):
-        print 'IN THIS FUNCTION'
-        cur.execute('''select * from std_record''')
-        r = [dict((cur.description[i][0], value)
-                  for i, value in enumerate(row)) for row in cur.fetchall()]
-        print r
-        return jsonify({'myCollection': r})
+    def get(self):                          # Function to get all names and roll numbers of students
+        data = []
+        # Query to Get data of students from database.
+        studnet_info = mongo.db.student_record.find({}, {"_id": 0, }).limit(10)
+        for student in studnet_info:                               # Loop to get data of each student and save it in a list.
+            data.append(student)
+        return jsonify({"Studnets_Record": data})                  # Return list of students after converting it in JSON format..
 
-    def post(self):
-        print("Create Record")
+    def post(self):                         # Function to Insert Student data from post.
         try:
-            name = request.form['name']
-            roll_num = request.form['roll_num']
-            print name, roll_num
-            cur.execute('''INSERT INTO `students`.`std_record`
-            (`name`,
-            `roll_num`)
-            VALUES
-            (%s,%s)''',(name, roll_num))
-            db.autocommit(on=True)
+            if 'name' in request.form:                      # to get name of student from form data
+                name = request.form['name']
+            else:
+                name = ''
+            if 'roll_num' in request.form:                  # to get roll_number of student from form data
+                roll_num = request.form['roll_num']
+            else:
+                roll_num = ''
+            if 'id' in request.form:                        # to get roll_number of student_ID from form data
+                student_id = request.form['id']
+            else:
+                student_id = ''
+            # Query To Insert Record of Student in Database
+            mongo.db.student_record.insert({"name": name, "roll_num": roll_num, "student_id": student_id})
             return 'Student Added to DATABASE'
         except Exception as e:
-           return(str(e))
-
-    def delete(self):
-        print("To Delete Record")
-        print(request.form)
-        if 'id' in request.form:
-            student_id = request.form['id']
-        else:
-            student_id = 0
-        if 'name' in request.form:
-            student_name = request.form['name']
-        else:
-            student_name = 'not_given'
-        print '***********************'
-        print student_id
-        print student_name
-        print '***********************'
-        try:
-            try:
-                cur.execute('''DELETE FROM `students`.`std_record`
-                WHERE `id` = %s OR `name` = %s;''',(student_id, student_name))
-            except Exception as e:
-                print '============================'
-                print e
-                print '============================'
-            print "DELETED"
-            return 'Record Deleted'
-        except Exception as e:
             return(str(e))
+
+    def delete(self):                           # Function to Delete Student Record on base of his name.
+        name = request.form['name']
+        # Query To Delete Record of Student in Database
+        mongo.db.student_record.remove({'name': name})
+        return 'Record for This student is Deleted'
+
 
 api.add_resource(StudendtsRecord, '/')
 
